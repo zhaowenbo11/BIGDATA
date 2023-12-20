@@ -113,3 +113,55 @@
 - 窗口函数也叫开窗函数、OLAP函数，其最大特点：输入值是从SELECT语句的结果集中的一行或多行的“窗口”中获取的
 - 如果函数具有OVER子句，则它是窗口函数
 - 窗口函数可以简单地解释为类似于聚合函数的计算函数，但是通过GROUP BY子句组合的常规聚合会隐藏正在聚合的各个行，最终输出一行，窗口函数聚合后还可以访问当中的各个行，并且可以将这些行中的某些属性添加到结果集中。
+
+#### 窗口表达式
+- 在sum（...）over（partition by ... order by...）语法完整的情况下，进行累积聚合操作
+- 窗口表达式
+- precding：往前
+- following：往后
+- current row：当前行
+- unbounded：边界
+- unbounded precding：表示从前面的起点
+- unbounded following：表示到后面的终点
+- 第一行到当前行：rows between unbounded preceding an current row
+- 向前三行至当前行：rows between 3 precding and current row
+- 向前三行，向后一行：rows between 3 precding and 1 following 
+
+#### 窗口排序函数--row_number家族
+- row_number：在每个分组中，为每行分配一个从1开始的唯一序列号，递增，**不考虑重复**
+- rank：在每个分组中，为每行分配一个从1开始的序列号，**考虑重复，挤占后续位置**
+- densc_rank：在每个分组中，为每行分配一个从1开始的序列号，**考虑重复，不挤占后续位置**
+- **适合TopN业务分析**
+
+#### 窗口排序函数--ntile
+- 将每个分组内的数据分为指定的若干个桶里（分为若干个部分），并且为每一个桶分配一个桶编号
+- 如果不能平均分配，则优先分配较小编号的桶，并且各个桶中能放的行数最多相差一
+
+#### 窗口分析函数
+- LAG(col,n,DEFAULT) 用于统计窗口内往上第n行
+- LEAD(col,n,DEFAULT) 用于统计窗口内往下第n行
+- FIRST_VALUE：取分组排序后，截止到当前行，第一个值
+- LAST_VALUE：取分组排序后，截止到当前行，最后一个值
+
+## 抽样函数
+#### 概念
+- 当数据量过大时，我们可能需要查找数据子集以加快数据处理速度分析
+- 在HQL中，可以通过三种方式采样数据：**随机采样**、**存储桶表采样**和**块采样**
+
+#### random随机抽样
+- 随机抽样使用random（）函数来确保随机获取数据，LIMIT来限制抽取的数据个数
+- 优点是随机，缺点是速度不快，尤其表数据多的时候
+- 推荐DISTRIBUTE BY+SORT BY，可以确保数据也随机分布在mapper和reducer之间，使得底层执行有效率
+
+#### block 基于数据块抽样
+- block块采样允许获取n行数据，百分比数据或指定大小的数据
+- 采样粒度是HDFS块大小
+- 优点是速度快，缺点是不随机
+
+#### bucket table 基于分桶表抽样
+- 既随机，速度也快
+- **语法：TABLESAMPLE(BUCKET x OUT OF y [ON colname])**
+- y必须是table总bucket数的倍数或者因子。hive根据y的大小，决定抽样的比例
+- x表示从哪个bucket抽取
+- 例如：table总bucket数为4，tablesample(bucket 4 out of 4)，表示总共抽取(4/4=)1个bucket的数据，抽取第4个bucket的数据
+- 注意：x的值必须小于等于y的值，否则FAILED:Numerator should not be bigger than denomiator in sample clause for table stu_buck
